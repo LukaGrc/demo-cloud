@@ -32,6 +32,28 @@ resource "google_cloud_run_v2_service" "api" {
         name  = "S3_BUCKET_NAME"
         value = var.s3_bucket_name
       }
+
+      # Zero-downtime: Cloud Run ne route pas le trafic vers la nouvelle révision
+      # tant que cette probe ne répond pas 200. Si la DB est cassée → déploiement
+      # bloqué, ancienne révision reste active.
+      startup_probe {
+        http_get {
+          path = "/healthz/ready"
+        }
+        initial_delay_seconds = 0
+        period_seconds        = 5
+        timeout_seconds       = 3
+        failure_threshold     = 3
+      }
+
+      liveness_probe {
+        http_get {
+          path = "/healthz/ready"
+        }
+        period_seconds    = 30
+        timeout_seconds   = 3
+        failure_threshold = 2
+      }
     }
   }
 }

@@ -60,6 +60,19 @@ def health():
     return jsonify({"status": "ok", "message": "healthy"})
 
 
+@app.route("/healthz/ready")
+def readiness():
+    try:
+        conn = open_db()
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        conn.close()
+        return jsonify({"status": "ok", "db": "reachable"})
+    except Exception as e:
+        logging.error(f"Readiness check failed: {e}")
+        return jsonify({"status": "error", "db": "unreachable"}), 503
+
+
 @app.route("/objects", methods=["GET"])
 def list_objects():
     try:
