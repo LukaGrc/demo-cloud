@@ -66,7 +66,8 @@ def list_objects():
         s3 = storage_client()
         response = s3.list_objects_v2(Bucket=BUCKET)
         items = [
-            {"name": obj["Key"], "size": obj["Size"], "last_modified": obj["LastModified"].isoformat()}
+            {"name": obj["Key"], "size": obj["Size"],
+             "last_modified": obj["LastModified"].isoformat()}
             for obj in response.get("Contents", [])
         ]
     except (ClientError, BotoCoreError) as e:
@@ -163,7 +164,9 @@ def get_history():
     try:
         conn = open_db()
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT id, name, size, stored_at FROM file_records ORDER BY stored_at DESC")
+            cur.execute(
+                "SELECT id, name, size, stored_at FROM file_records ORDER BY stored_at DESC"
+            )
             rows = cur.fetchall()
         conn.close()
     except Exception as e:
