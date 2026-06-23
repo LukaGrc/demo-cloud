@@ -14,7 +14,7 @@ resource "google_cloud_run_v2_service" "api" {
 
       env {
         name  = "DATABASE_URL"
-        value = "postgresql://bad_user:bad_pass@127.0.0.1:5432/nonexistent"
+        value = var.pg_dsn
       }
       env {
         name  = "AWS_ACCESS_KEY_ID"
