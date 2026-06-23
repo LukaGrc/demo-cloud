@@ -454,7 +454,7 @@
   <script>
     const API_URL = window.location.hostname === "localhost"
       ? "http://localhost:8080"
-      : "https://notes-api-XXXXXXXXXX.europe-west9.run.app";
+      : "${API_URL}";
 
     let mdeEditor = null;
     let activeFile = null;

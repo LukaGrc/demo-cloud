@@ -43,6 +43,10 @@ resource "google_cloud_run_v2_service" "ui" {
   template {
     containers {
       image = local.ui_image
+      env {
+        name  = "API_URL"
+        value = google_cloud_run_v2_service.api.uri
+      }
     }
   }
 }
