@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx ctx7@latest docs ionaru/easy-markdown-editor \"CDN setup toolbar getValue setValue\")",
+      "Bash(cd /tmp)",
+      "Bash(npx ctx7@latest docs /ionaru/easy-markdown-editor \"CDN setup toolbar getValue setValue\")"
+    ]
+  }
+}

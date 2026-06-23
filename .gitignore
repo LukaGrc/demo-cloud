@@ -1,0 +1,16 @@
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.venv-ci/
+.pytest_cache/
+.ruff_cache/
+
+# Terraform
+terraform/terraform.tfvars
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+# .terraform.lock.hcl est versionné volontairement (reproductibilité CI)

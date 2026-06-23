@@ -1,0 +1,145 @@
+name: Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Permissions minimales par défaut. Chaque job n'élève que ce dont il a besoin.
+permissions:
+  contents: read
+
+# Annule les runs en cours sur la même ref pour éviter les déploiements concurrents.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_ID: notes-lgarcia-2847
+  DEPLOY_REGION: europe-west9
+  REGISTRY_REPO: notes-app
+  REGISTRY_HOST: europe-west9-docker.pkg.dev
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Lint + tests unitaires. Tourne sur push ET sur PR (gate de qualité).
+  # ---------------------------------------------------------------------------
+  quality:
+    name: Lint & Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run linter (ruff)
+        run: ruff check .
+
+      - name: Run unit tests (pytest)
+        run: pytest -q
+
+  # ---------------------------------------------------------------------------
+  # 2) Build + push des images Docker vers Artifact Registry.
+  #    Uniquement sur push main (pas sur PR → pas de push depuis un fork).
+  # ---------------------------------------------------------------------------
+  containerize:
+    name: Build & Push images
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY_HOST }} --quiet
+
+      - name: Build and push ${{ matrix.service }} (SHA + latest)
+        env:
+          IMAGE: ${{ env.REGISTRY_HOST }}/${{ env.PROJECT_ID }}/${{ env.REGISTRY_REPO }}/${{ matrix.service }}
+        run: |
+          docker build \
+            -t "$IMAGE:${{ github.sha }}" \
+            -t "$IMAGE:latest" \
+            ${{ matrix.service }}
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+  # ---------------------------------------------------------------------------
+  # 3) Déploiement Cloud Run via Terraform avec la nouvelle image taguée.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Deploy to Cloud Run
+    needs: containerize
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.3"
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      # Seules les ressources Cloud Run sont ciblées : kubernetes.tf pointe vers
+      # un cluster minikube local, indisponible dans l'environnement CI.
+      - name: Terraform Apply (Cloud Run only)
+        env:
+          TF_VAR_app_version: ${{ github.sha }}
+          TF_VAR_pg_dsn: ${{ secrets.TF_DATABASE_URL }}
+          TF_VAR_s3_key_id: ${{ secrets.TF_AWS_ACCESS_KEY_ID }}
+          TF_VAR_s3_key_secret: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_s3_region: ${{ vars.AWS_DEFAULT_REGION }}
+          TF_VAR_s3_bucket_name: ${{ vars.S3_BUCKET_NAME }}
+        run: |
+          terraform apply -input=false -auto-approve \
+            -target=google_cloud_run_v2_service.api \
+            -target=google_cloud_run_v2_service.ui \
+            -target=google_cloud_run_v2_service_iam_member.api_public \
+            -target=google_cloud_run_v2_service_iam_member.ui_public

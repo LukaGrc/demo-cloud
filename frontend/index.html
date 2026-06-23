@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdown Notes</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #0b1120;
+      color: #dde3ee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 48px 16px;
+      gap: 24px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #1a1200;
+      border: 1px solid #ea580c;
+      color: #ea580c;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+
+    .badge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ea580c;
+    }
+
+    .card {
+      background: #111827;
+      border: 1px solid #1f2d4a;
+      border-radius: 16px;
+      padding: 32px 40px;
+      width: 100%;
+      max-width: 820px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .card-header-left h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .card-header-left h2 {
+      font-size: 17px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .card-header-left p {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .card-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    button:active { transform: scale(0.97); }
+
+    button:disabled {
+      background: #1f2d4a !important;
+      color: #3d5278 !important;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
+
+    .btn-ghost {
+      background: #0b1120;
+      border: 1px solid #1f2d4a;
+      color: #64748b;
+    }
+    .btn-ghost:hover { background: #111827; color: #dde3ee; }
+
+    .btn-icon {
+      background: transparent;
+      border: none;
+      color: #3d5278;
+      padding: 6px 8px;
+      font-size: 15px;
+      border-radius: 6px;
+    }
+    .btn-icon:hover { background: #0b1120; color: #dde3ee; }
+
+    #file-input { display: none; }
+
+    .file-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      background: #0b1120;
+      border: 1px dashed #1f2d4a;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+
+    .file-label:hover { border-color: #2563eb; color: #dde3ee; }
+    .file-label.has-file { border-color: #2563eb; color: #dde3ee; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      text-align: left;
+      color: #3d5278;
+      font-weight: 600;
+      padding: 8px 10px;
+      border-bottom: 1px solid #1f2d4a;
+    }
+
+    thead th:last-child { text-align: right; }
+
+    tbody tr {
+      border-bottom: 1px solid #0e1930;
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #0e1930; }
+
+    tbody td { padding: 10px 10px; color: #dde3ee; }
+    tbody td.muted { color: #3d5278; }
+    tbody td.actions { text-align: right; }
+
+    .empty-row td {
+      text-align: center;
+      color: #243550;
+      padding: 28px;
+    }
+
+    .feedback {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: #0b1120;
+      border: 1px solid #1f2d4a;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 13px;
+      margin-top: 16px;
+    }
+
+    .feedback.show { display: flex; }
+    .feedback .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .feedback.ok { border-color: #16a34a; }
+    .feedback.ok .dot { background: #16a34a; }
+    .feedback.ok .msg { color: #86efac; }
+    .feedback.err { border-color: #dc2626; }
+    .feedback.err .dot { background: #dc2626; }
+    .feedback.err .msg { color: #fca5a5; }
+    .feedback .lbl { color: #3d5278; font-size: 12px; margin-left: auto; }
+
+    .health-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-check {
+      background: #ea580c;
+      color: #fff;
+    }
+    .btn-check:hover { background: #c2410c; }
+
+    .stack-badges {
+      display: flex;
+      gap: 10px;
+    }
+
+    .stack-badge {
+      background: #0b1120;
+      border: 1px solid #1f2d4a;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 11px;
+      color: #64748b;
+      text-align: center;
+    }
+
+    .stack-badge span {
+      display: block;
+      font-weight: 700;
+      font-size: 12px;
+      margin-bottom: 1px;
+    }
+
+    .stack-badge.front span { color: #2563eb; }
+    .stack-badge.back span  { color: #ea580c; }
+
+    /* ── Editor modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: #111827;
+      border: 1px solid #1f2d4a;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 860px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 28px;
+      border-bottom: 1px solid #1f2d4a;
+      flex-shrink: 0;
+    }
+
+    .modal-header h2 { font-size: 15px; font-weight: 700; color: #ffffff; }
+    .modal-header p  { font-size: 12px; color: #3d5278; margin-top: 2px; }
+    .modal-header-actions { display: flex; gap: 10px; align-items: center; }
+
+    .modal-body {
+      padding: 20px 28px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      border-top: 1px solid #1f2d4a;
+      flex-shrink: 0;
+    }
+
+    .modal-footer .status { font-size: 12px; color: #3d5278; }
+    .modal-footer .status.ok  { color: #86efac; }
+    .modal-footer .status.err { color: #fca5a5; }
+
+    .EasyMDEContainer { border-radius: 8px; overflow: hidden; }
+    .EasyMDEContainer .CodeMirror {
+      background: #0b1120;
+      color: #dde3ee;
+      border: 1px solid #1f2d4a;
+      border-top: none;
+      font-size: 14px;
+      min-height: 320px;
+    }
+    .editor-toolbar {
+      background: #0e1930;
+      border: 1px solid #1f2d4a;
+      border-bottom: none;
+      border-radius: 8px 8px 0 0;
+    }
+    .editor-toolbar button { color: #64748b !important; }
+    .editor-toolbar button:hover, .editor-toolbar button.active {
+      background: #111827 !important;
+      border-color: #1f2d4a !important;
+      color: #dde3ee !important;
+    }
+    .editor-toolbar i.separator { border-color: #1f2d4a !important; }
+    .CodeMirror-scroll { min-height: 320px; }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── Object Storage ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="badge" style="margin-bottom:10px">Object Storage</div>
+        <h1>Mes fichiers</h1>
+        <p>Stockage de notes Markdown sur AWS S3</p>
+      </div>
+      <div class="card-header-actions">
+        <label class="file-label" id="file-label" for="file-input">📄 Choisir un .md</label>
+        <input type="file" id="file-input" accept=".md" onchange="onFileSelect(this)" />
+        <button class="btn-primary" id="upload-btn" onclick="storeFile()" disabled>☁️ Envoyer</button>
+        <button class="btn-ghost" onclick="fetchObjects()">↻ Actualiser</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Fichier</th>
+          <th>Taille</th>
+          <th>Dernière modification</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="objects-tbody">
+        <tr class="empty-row"><td colspan="4">Chargement…</td></tr>
+      </tbody>
+    </table>
+
+    <div class="feedback" id="store-feedback">
+      <div class="dot"></div>
+      <span class="msg" id="store-msg"></span>
+      <span class="lbl" id="store-lbl"></span>
+    </div>
+  </div>
+
+  <!-- ── Upload History ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="badge" style="margin-bottom:10px; background:#0f1a2e; border-color:#2563eb; color:#2563eb">
+          PostgreSQL
+        </div>
+        <h2>Historique des envois</h2>
+        <p>Enregistrements stockés en base de données</p>
+      </div>
+      <div class="card-header-actions">
+        <button class="btn-ghost" onclick="fetchHistory()">↻ Actualiser</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Fichier</th>
+          <th>Taille</th>
+          <th>Envoyé le</th>
+        </tr>
+      </thead>
+      <tbody id="history-tbody">
+        <tr class="empty-row"><td colspan="4">Chargement…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Health Check ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-left">
+        <h2>Health Check</h2>
+        <p>Vérification de la connectivité frontend ↔ backend.</p>
+      </div>
+      <div class="stack-badges">
+        <div class="stack-badge front"><span>Frontend</span>Nginx · Cloud Run</div>
+        <div class="stack-badge back"><span>Backend</span>Flask · Cloud Run</div>
+      </div>
+    </div>
+    <div class="health-row">
+      <button class="btn-check" id="health-btn" onclick="checkHealth()">🩺 Vérifier</button>
+      <div class="feedback" id="health-feedback" style="flex:1; min-width:180px; margin-top:0">
+        <div class="dot"></div>
+        <span class="msg" id="health-msg"></span>
+        <span class="lbl" id="health-lbl"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Editor modal ── -->
+  <div class="modal-overlay" id="editor-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="editor-title">Éditeur</h2>
+          <p id="editor-subtitle"></p>
+        </div>
+        <div class="modal-header-actions">
+          <button class="btn-ghost" onclick="closeModal()">✕ Fermer</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <textarea id="editor-textarea"></textarea>
+      </div>
+      <div class="modal-footer">
+        <span class="status" id="save-status"></span>
+        <button class="btn-primary" id="save-btn" onclick="commitChanges()">💾 Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.hostname === "localhost"
+      ? "http://localhost:8080"
+      : "https://notes-api-XXXXXXXXXX.europe-west9.run.app";
+
+    let mdeEditor = null;
+    let activeFile = null;
+
+    // ── Fetch objects ──
+    async function fetchObjects() {
+      const tbody = document.getElementById("objects-tbody");
+      tbody.innerHTML = "<tr class='empty-row'><td colspan='4'>Chargement…</td></tr>";
+      try {
+        const res = await fetch(`${API_URL}/objects`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        if (data.objects.length === 0) {
+          tbody.innerHTML = "<tr class='empty-row'><td colspan='4'>Aucun fichier dans le bucket</td></tr>";
+          return;
+        }
+        tbody.innerHTML = data.objects.map(f => {
+          const date = new Date(f.last_modified).toLocaleString("fr-FR");
+          const size = f.size < 1024 ? `${f.size} B` : `${(f.size / 1024).toFixed(1)} KB`;
+          return `<tr>
+            <td>${f.name}</td>
+            <td class="muted">${size}</td>
+            <td class="muted">${date}</td>
+            <td class="actions">
+              <button class="btn-icon" title="Éditer" onclick="openFileEditor('${f.name}')">✏️</button>
+              <button class="btn-icon" title="Exporter" onclick="exportFile('${f.name}')">⬇️</button>
+            </td>
+          </tr>`;
+        }).join("");
+      } catch (e) {
+        tbody.innerHTML = `<tr class='empty-row'><td colspan='4'>Erreur : ${e.message}</td></tr>`;
+      }
+    }
+
+    // ── Fetch history ──
+    async function fetchHistory() {
+      const tbody = document.getElementById("history-tbody");
+      tbody.innerHTML = "<tr class='empty-row'><td colspan='4'>Chargement…</td></tr>";
+      try {
+        const res = await fetch(`${API_URL}/history`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        if (data.records.length === 0) {
+          tbody.innerHTML = "<tr class='empty-row'><td colspan='4'>Aucun enregistrement</td></tr>";
+          return;
+        }
+        tbody.innerHTML = data.records.map(r => {
+          const date = new Date(r.stored_at).toLocaleString("fr-FR");
+          const size = r.size < 1024 ? `${r.size} B` : `${(r.size / 1024).toFixed(1)} KB`;
+          return `<tr>
+            <td class="muted">${r.id}</td>
+            <td>${r.name}</td>
+            <td class="muted">${size}</td>
+            <td class="muted">${date}</td>
+          </tr>`;
+        }).join("");
+      } catch (e) {
+        tbody.innerHTML = `<tr class='empty-row'><td colspan='4'>Erreur : ${e.message}</td></tr>`;
+      }
+    }
+
+    // ── Editor ──
+    async function openFileEditor(filename) {
+      activeFile = filename;
+      document.getElementById("editor-title").textContent = filename;
+      document.getElementById("editor-subtitle").textContent = "Chargement…";
+      document.getElementById("save-status").textContent = "";
+      document.getElementById("save-status").className = "status";
+      document.getElementById("editor-overlay").classList.add("show");
+
+      if (!mdeEditor) {
+        mdeEditor = new EasyMDE({
+          element: document.getElementById("editor-textarea"),
+          spellChecker: false,
+          autosave: { enabled: false },
+          toolbar: ["bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|", "link", "image", "|", "preview", "side-by-side", "fullscreen"],
+        });
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/object/${encodeURIComponent(filename)}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        mdeEditor.value(data.content);
+        document.getElementById("editor-subtitle").textContent = "Prêt à éditer";
+      } catch (e) {
+        document.getElementById("editor-subtitle").textContent = "Erreur : " + e.message;
+      }
+    }
+
+    function closeModal() {
+      document.getElementById("editor-overlay").classList.remove("show");
+    }
+
+    async function commitChanges() {
+      if (!activeFile) return;
+      const btn = document.getElementById("save-btn");
+      const status = document.getElementById("save-status");
+
+      btn.disabled = true;
+      btn.textContent = "⏳ Sauvegarde…";
+      status.textContent = "";
+
+      try {
+        const res = await fetch(`${API_URL}/object/${encodeURIComponent(activeFile)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: mdeEditor.value() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        status.textContent = "✓ " + data.message;
+        status.className = "status ok";
+        await fetchObjects();
+      } catch (e) {
+        status.textContent = "✗ " + e.message;
+        status.className = "status err";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "💾 Sauvegarder";
+      }
+    }
+
+    // ── Export ──
+    function exportFile(filename) {
+      const a = document.createElement("a");
+      a.href = `${API_URL}/export/${encodeURIComponent(filename)}`;
+      a.download = filename;
+      a.click();
+    }
+
+    // ── File select ──
+    function onFileSelect(input) {
+      const label = document.getElementById("file-label");
+      const uploadBtn = document.getElementById("upload-btn");
+      if (input.files.length > 0) {
+        label.textContent = "📄 " + input.files[0].name;
+        label.classList.add("has-file");
+        uploadBtn.disabled = false;
+      } else {
+        label.textContent = "📄 Choisir un .md";
+        label.classList.remove("has-file");
+        uploadBtn.disabled = true;
+      }
+    }
+
+    // ── Store file ──
+    async function storeFile() {
+      const input = document.getElementById("file-input");
+      const btn = document.getElementById("upload-btn");
+      const fb = document.getElementById("store-feedback");
+      const msg = document.getElementById("store-msg");
+      const lbl = document.getElementById("store-lbl");
+
+      if (!input.files.length) return;
+
+      btn.disabled = true;
+      btn.textContent = "⏳ Envoi…";
+      fb.className = "feedback";
+
+      const formData = new FormData();
+      formData.append("file", input.files[0]);
+      const t0 = Date.now();
+
+      try {
+        const res = await fetch(`${API_URL}/store`, { method: "POST", body: formData });
+        const data = await res.json();
+        const ms = Date.now() - t0;
+        if (res.ok) {
+          msg.textContent = data.message;
+          lbl.textContent = `${ms} ms`;
+          fb.className = "feedback ok show";
+          await fetchObjects();
+          await fetchHistory();
+        } else {
+          msg.textContent = data.error || "Erreur lors de l'envoi.";
+          lbl.textContent = "erreur";
+          fb.className = "feedback err show";
+        }
+      } catch (e) {
+        msg.textContent = "Impossible de joindre le backend.";
+        lbl.textContent = "erreur";
+        fb.className = "feedback err show";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "☁️ Envoyer";
+      }
+    }
+
+    // ── Health check ──
+    async function checkHealth() {
+      const btn = document.getElementById("health-btn");
+      const fb = document.getElementById("health-feedback");
+      const msg = document.getElementById("health-msg");
+      const lbl = document.getElementById("health-lbl");
+
+      btn.disabled = true;
+      btn.textContent = "⏳ En attente…";
+      fb.className = "feedback";
+
+      const t0 = Date.now();
+      try {
+        const res = await fetch(`${API_URL}/health`);
+        const data = await res.json();
+        const ms = Date.now() - t0;
+        msg.textContent = data.message;
+        lbl.textContent = `${ms} ms`;
+        fb.className = "feedback ok show";
+      } catch (e) {
+        msg.textContent = "Impossible de joindre le backend.";
+        lbl.textContent = "erreur";
+        fb.className = "feedback err show";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "🩺 Vérifier";
+      }
+    }
+
+    fetchObjects();
+    fetchHistory();
+  </script>
+</body>
+
+</html>
