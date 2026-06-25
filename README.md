@@ -168,11 +168,20 @@ terraform/
 └── kubernetes.tf         # PostgreSQL sur Minikube (dev local uniquement)
 ```
 
-L'intégralité des composants cloud (registre, secrets, IAM, Cloud Run, monitoring)
+L'intégralité des composants **GCP** (registre, secrets, IAM, Cloud Run, monitoring)
 est provisionnée par Terraform — seul le bootstrap initial (compte GCP, premier
 bucket de state, Workload Identity Federation) reste en dehors, dans `setup/setup.sh`,
 car il s'agit d'un problème d'œuf et de poule (il faut un backend pour stocker le
 state avant de pouvoir l'utiliser).
+
+**Hors-scope volontaire — bucket S3 et PostgreSQL (Neon)** : ce projet est multi-cloud
+par choix (GCP pour le compute, AWS S3 pour le stockage objet, Neon pour PostgreSQL
+managé). Le bucket S3 et l'instance Neon sont des **services tiers gérés en dehors de
+GCP**, créés manuellement une seule fois et référencés par Terraform via
+`s3_bucket_name` / `pg_dsn` (et non créés par lui). Ce ne sont pas des composants GCP
+provisionnés par ce module Terraform — au même titre que le projet GCP lui-même ou le
+compte AWS, ils sont considérés comme l'infrastructure tierce préexistante sur laquelle
+s'appuie le déploiement, pas comme des ressources du périmètre IaC de ce repo.
 
 Avant le premier `terraform init`, créer le bucket GCS manuellement :
 
