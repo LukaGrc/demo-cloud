@@ -3,8 +3,7 @@ import logging
 import os
 
 import boto3
-import psycopg2
-import psycopg2.extras
+import requests
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from dotenv import load_dotenv
@@ -18,7 +17,7 @@ CORS(app)
 
 BUCKET = os.environ.get("S3_BUCKET_NAME", "")
 S3_REGION = os.environ.get("AWS_DEFAULT_REGION", "eu-west-1")
-DATABASE_URL = os.environ.get("DATABASE_URL")
+HISTORY_SERVICE_URL = os.environ.get("HISTORY_SERVICE_URL", "http://localhost:8081").rstrip("/")
 
 
 def storage_client():
@@ -29,32 +28,6 @@ def storage_client():
     )
 
 
-def open_db():
-    return psycopg2.connect(DATABASE_URL, connect_timeout=5)
-
-
-def setup_schema():
-    try:
-        conn = open_db()
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS file_records (
-                        id SERIAL PRIMARY KEY,
-                        name VARCHAR(255) NOT NULL,
-                        size INTEGER NOT NULL,
-                        stored_at TIMESTAMPTZ DEFAULT NOW()
-                    )
-                """)
-        conn.close()
-        logging.info("Schema ready")
-    except Exception as e:
-        logging.error(f"Schema setup failed: {e}")
-
-
-setup_schema()
-
-
 @app.route("/health")
 def health():
     return jsonify({"status": "ok", "message": "healthy"})
@@ -63,14 +36,12 @@ def health():
 @app.route("/healthz/ready")
 def readiness():
     try:
-        conn = open_db()
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
-        conn.close()
-        return jsonify({"status": "ok", "db": "reachable"})
-    except Exception as e:
+        s3 = storage_client()
+        s3.head_bucket(Bucket=BUCKET)
+        return jsonify({"status": "ok", "s3": "reachable"})
+    except (ClientError, BotoCoreError) as e:
         logging.error(f"Readiness check failed: {e}")
-        return jsonify({"status": "error", "db": "unreachable"}), 503
+        return jsonify({"status": "error", "s3": "unreachable"}), 503
 
 
 @app.route("/objects", methods=["GET"])
@@ -158,16 +129,13 @@ def store_file():
         return jsonify({"error": str(e)}), 500
 
     try:
-        conn = open_db()
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO file_records (name, size) VALUES (%s, %s)",
-                    (file.filename, file_size),
-                )
-        conn.close()
-    except Exception as e:
-        logging.error(f"DB insert failed: {e}")
+        requests.post(
+            f"{HISTORY_SERVICE_URL}/records",
+            json={"name": file.filename, "size": file_size},
+            timeout=5,
+        )
+    except requests.RequestException as e:
+        logging.error(f"history-service call failed: {e}")
 
     return jsonify({"status": "ok", "message": f"'{file.filename}' stored successfully"})
 
@@ -175,27 +143,12 @@ def store_file():
 @app.route("/history", methods=["GET"])
 def get_history():
     try:
-        conn = open_db()
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                "SELECT id, name, size, stored_at FROM file_records ORDER BY stored_at DESC"
-            )
-            rows = cur.fetchall()
-        conn.close()
-    except Exception as e:
-        logging.error(e)
-        return jsonify({"error": str(e)}), 500
-
-    records = [
-        {
-            "id": row["id"],
-            "name": row["name"],
-            "size": row["size"],
-            "stored_at": row["stored_at"].isoformat(),
-        }
-        for row in rows
-    ]
-    return jsonify({"records": records})
+        resp = requests.get(f"{HISTORY_SERVICE_URL}/records", timeout=5)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        logging.error(f"history-service call failed: {e}")
+        return jsonify({"error": str(e)}), 502
+    return jsonify(resp.json())
 
 
 if __name__ == "__main__":

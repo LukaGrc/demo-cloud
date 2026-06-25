@@ -23,7 +23,7 @@ docker run -it \
 2. Création du projet GCP
 3. Activation des APIs nécessaires
 4. Bucket GCS pour le state Terraform
-5. Dépôt Artifact Registry `notes-app`
+5. (étape conservée par compatibilité — le dépôt Artifact Registry `notes-app` est désormais créé par Terraform, `terraform/registry.tf`)
 6. Service account `github-actions` avec les bons rôles
 7. Workload Identity Federation (auth keyless GitHub → GCP)
 

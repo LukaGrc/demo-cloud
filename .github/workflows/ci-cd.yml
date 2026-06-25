@@ -23,16 +23,20 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # 1) Lint + tests unitaires. Tourne sur push ET sur PR (gate de qualité).
+  # 1) Lint + tests unitaires de chaque microservice backend. Tourne sur push
+  #    ET sur PR (gate de qualité).
   # ---------------------------------------------------------------------------
   quality:
-    name: Lint & Tests
+    name: Lint & Tests (${{ matrix.service }})
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      matrix:
+        service: [files-service, history-service]
     defaults:
       run:
-        working-directory: backend
+        working-directory: ${{ matrix.service }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,7 +46,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: backend/requirements-dev.txt
+          cache-dependency-path: ${{ matrix.service }}/requirements-dev.txt
 
       - name: Install dev dependencies
         run: pip install -r requirements-dev.txt
@@ -67,7 +71,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        service: [backend, frontend]
+        service: [files-service, history-service, frontend]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -127,9 +131,10 @@ jobs:
       - name: Terraform Init
         run: terraform init -input=false
 
-      # Seules les ressources Cloud Run sont ciblées : kubernetes.tf pointe vers
-      # un cluster minikube local, indisponible dans l'environnement CI.
-      - name: Terraform Apply (Cloud Run only)
+      # Toutes les ressources GCP (Cloud Run, secrets, registre, monitoring) sont
+      # ciblées explicitement : kubernetes.tf pointe vers un cluster minikube
+      # local, indisponible dans l'environnement CI.
+      - name: Terraform Apply (GCP resources only)
         env:
           TF_VAR_app_version: ${{ github.sha }}
           TF_VAR_pg_dsn: ${{ secrets.TF_DATABASE_URL }}
@@ -137,9 +142,28 @@ jobs:
           TF_VAR_s3_key_secret: ${{ secrets.TF_AWS_SECRET_ACCESS_KEY }}
           TF_VAR_s3_region: ${{ vars.AWS_DEFAULT_REGION }}
           TF_VAR_s3_bucket_name: ${{ vars.S3_BUCKET_NAME }}
+          TF_VAR_alert_notification_email: ${{ vars.ALERT_NOTIFICATION_EMAIL }}
         run: |
           terraform apply -input=false -auto-approve \
-            -target=google_cloud_run_v2_service.api \
+            -target=google_artifact_registry_repository.notes_app \
+            -target=google_project_service.secretmanager \
+            -target=google_project_service.monitoring \
+            -target=google_service_account.cloud_run_runtime \
+            -target=google_secret_manager_secret.database_url \
+            -target=google_secret_manager_secret_version.database_url \
+            -target=google_secret_manager_secret.aws_access_key_id \
+            -target=google_secret_manager_secret_version.aws_access_key_id \
+            -target=google_secret_manager_secret.aws_secret_access_key \
+            -target=google_secret_manager_secret_version.aws_secret_access_key \
+            -target=google_secret_manager_secret_iam_member.database_url_access \
+            -target=google_secret_manager_secret_iam_member.aws_access_key_id_access \
+            -target=google_secret_manager_secret_iam_member.aws_secret_access_key_access \
+            -target=google_cloud_run_v2_service.history_api \
+            -target=google_cloud_run_v2_service.files_api \
             -target=google_cloud_run_v2_service.ui \
-            -target=google_cloud_run_v2_service_iam_member.api_public \
-            -target=google_cloud_run_v2_service_iam_member.ui_public
+            -target=google_cloud_run_v2_service_iam_member.history_api_public \
+            -target=google_cloud_run_v2_service_iam_member.files_api_public \
+            -target=google_cloud_run_v2_service_iam_member.ui_public \
+            -target=google_monitoring_notification_channel.email \
+            -target=google_monitoring_uptime_check_config.service_health \
+            -target=google_monitoring_alert_policy.service_down

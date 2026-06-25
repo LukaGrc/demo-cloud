@@ -104,17 +104,11 @@ else
 fi
 
 # ── 5. Artifact Registry ──────────────────────────────────────────────────────
+# Le dépôt notes-app est désormais provisionné par Terraform
+# (terraform/registry.tf), pas par ce script — cf. l'exigence "tout en IaC".
 if step 5; then
   header "5/7 · Artifact Registry"
-  if gcloud artifacts repositories describe notes-app --location="$REGION" &>/dev/null; then
-    ok "Dépôt notes-app déjà existant"
-  else
-    gcloud artifacts repositories create notes-app \
-      --repository-format=docker \
-      --location="$REGION" \
-      --quiet
-    ok "Dépôt notes-app créé"
-  fi
+  info "Géré par Terraform (terraform/registry.tf) — rien à faire ici."
 else
   skip 5
 fi
@@ -135,8 +129,12 @@ if step 6; then
   for ROLE in \
     roles/run.admin \
     roles/storage.admin \
-    roles/artifactregistry.writer \
-    roles/iam.serviceAccountUser; do
+    roles/artifactregistry.admin \
+    roles/iam.serviceAccountUser \
+    roles/iam.serviceAccountAdmin \
+    roles/secretmanager.admin \
+    roles/monitoring.admin \
+    roles/serviceusage.serviceUsageAdmin; do
     gcloud projects add-iam-policy-binding "$PROJECT_ID" \
       --member="serviceAccount:${SA_EMAIL}" \
       --role="$ROLE" \

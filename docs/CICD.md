@@ -14,9 +14,9 @@ Le build + déploiement n'ont lieu qu'après un merge/push sur `main`.
 
 ## Étapes
 
-1. **test** — `ruff check` (linter) + `pytest` (tests unitaires) sur le backend Python 3.12.
-2. **build-push** — build des images `backend` et `frontend` (matrix), taguées avec le **SHA du commit** + `latest`, poussées vers Google Artifact Registry (`europe-west1-docker.pkg.dev/cloud-ynov-494711/demo`).
-3. **deploy** — `terraform apply` ciblé sur les services Cloud Run, en injectant `image_tag = <SHA>` → Cloud Run déploie une nouvelle révision avec l'image fraîchement poussée.
+1. **quality** — `ruff check` (linter) + `pytest` (tests unitaires), en matrix sur les deux microservices backend (`files-service`, `history-service`).
+2. **containerize** — build des images `files-service`, `history-service` et `frontend` (matrix), taguées avec le **SHA du commit** + `latest`, poussées vers Google Artifact Registry (dépôt `notes-app`, provisionné par `terraform/registry.tf`).
+3. **release** — `terraform apply` ciblé sur les ressources GCP (Cloud Run, Secret Manager, IAM, monitoring), en injectant `app_version = <SHA>` → Cloud Run déploie une nouvelle révision de chaque service avec l'image fraîchement poussée.
 
 ## Isolation & sécurité
 
@@ -57,11 +57,8 @@ gcloud services enable \
 
 ### 2. Dépôt Artifact Registry
 
-```bash
-gcloud artifacts repositories create demo \
-  --repository-format=docker --location="$REGION" \
-  --project "$PROJECT_ID"
-```
+Provisionné par Terraform (`terraform/registry.tf`, ressource
+`google_artifact_registry_repository.notes_app`) — rien à créer manuellement.
 
 ### 3. Bucket GCS pour le tfstate (backend Terraform)
 
@@ -87,11 +84,15 @@ terraform init -migrate-state   # répond "yes" pour copier le state local vers 
 gcloud iam service-accounts create "$SA_NAME" \
   --display-name="GitHub Actions CI" --project "$PROJECT_ID"
 
-# Rôles : push images, déployer Cloud Run, gérer l'IAM run, lire/écrire le tfstate
+# Rôles : push images, déployer Cloud Run, gérer secrets/IAM/monitoring, lire/écrire le tfstate
 for ROLE in \
   roles/run.admin \
-  roles/artifactregistry.writer \
+  roles/artifactregistry.admin \
   roles/iam.serviceAccountUser \
+  roles/iam.serviceAccountAdmin \
+  roles/secretmanager.admin \
+  roles/monitoring.admin \
+  roles/serviceusage.serviceUsageAdmin \
   roles/storage.admin ; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:${SA_EMAIL}" --role="$ROLE"
@@ -99,6 +100,9 @@ done
 ```
 
 > `roles/storage.admin` au niveau projet est large ; pour restreindre, ne le donner que sur le bucket tfstate.
+> `roles/iam.serviceAccountAdmin` et `roles/secretmanager.admin` sont nécessaires car
+> Terraform crée désormais le service account d'exécution Cloud Run et les secrets
+> applicatifs (`terraform/secrets.tf`).
 
 ### 5. Workload Identity Federation (keyless)
 
@@ -134,6 +138,8 @@ echo "Service account : ${SA_EMAIL}"
 | `WIF_PROVIDER` | `projects/<NUMBER>/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
 | `WIF_SERVICE_ACCOUNT` | `github-ci@cloud-ynov-494711.iam.gserviceaccount.com` |
 | `AWS_DEFAULT_REGION` | `eu-west-3` |
+| `S3_BUCKET_NAME` | nom du bucket S3 |
+| `ALERT_NOTIFICATION_EMAIL` | email recevant les alertes Cloud Monitoring |
 
 **Secrets** (onglet *Secrets*, chiffrés) :
 
@@ -150,7 +156,7 @@ C'est tout : pousser sur `main` déclenche tests → build/push → déploiement
 ## Lancer les tests / le linter en local
 
 ```bash
-cd backend
+cd files-service   # ou history-service
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
 ruff check .

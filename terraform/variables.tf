@@ -44,3 +44,20 @@ variable "app_version" {
   type        = string
   default     = "latest"
 }
+
+variable "min_instance_count" {
+  description = "Nombre minimal d'instances par service Cloud Run (0 = scale-to-zero)."
+  type        = number
+  default     = 0
+}
+
+variable "max_instance_count" {
+  description = "Nombre maximal d'instances par service Cloud Run (plafond du scaling horizontal)."
+  type        = number
+  default     = 3
+}
+
+variable "alert_notification_email" {
+  description = "Adresse e-mail recevant les alertes Cloud Monitoring."
+  type        = string
+}
